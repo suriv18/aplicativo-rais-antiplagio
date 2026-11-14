@@ -3,9 +3,6 @@ package com.softprimesolutions.aplicativoraisantiplagio.dominio;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * La tesis que sube el docente. Guarda en qué punto del filtro antiplagio está.
- */
 public class Tesis {
 
     private final String nombreArchivo;
