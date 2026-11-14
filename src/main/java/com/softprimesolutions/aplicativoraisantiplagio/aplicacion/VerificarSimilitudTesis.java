@@ -1,7 +1,6 @@
 package com.softprimesolutions.aplicativoraisantiplagio.aplicacion;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -14,8 +13,9 @@ import com.softprimesolutions.aplicativoraisantiplagio.dominio.Tesis;
 /**
  * Caso de uso: pasar la tesis por el filtro antiplagio.
  *
- * Fase GREEN: lo mínimo para que pasen las pruebas. Maneja la demora de Turnitin,
- * la regla del 20 % y la caída del servicio, sin reenviar nunca un PDF ya enviado.
+ * Fase REFACTOR: el comportamiento es el mismo que en GREEN (las pruebas no cambiaron),
+ * pero las reglas del 20 % y de los 15 minutos ahora viven en PoliticaSimilitud
+ * y cada paso del flujo tiene su propio método.
  */
 public class VerificarSimilitudTesis {
 
@@ -44,28 +44,14 @@ public class VerificarSimilitudTesis {
     /** Se ejecuta periódicamente para ver si Turnitin ya respondió. */
     public ResultadoVerificacion revisar(Tesis tesis) {
         if (tesis.estado().esDecisionFinal()) {
-            return new ResultadoVerificacion(tesis.estado(), mensajeDeDecision(tesis));
+            return resultadoDeDecision(tesis);
         }
         if (!tesis.fueEnviada()) {
             return intentarEnviar(tesis);   // nunca llegó a Turnitin (estaba caído): ahora sí se envía
         }
-
-        Optional<Integer> porcentaje = consultarSinRomperse(tesis.idEnvio());
-        if (porcentaje.isPresent()) {
-            int p = porcentaje.get();
-            EstadoTesis decision = p > politica.umbralMaximo()
-                    ? EstadoTesis.RECHAZADA_POR_SIMILITUD
-                    : EstadoTesis.SIMILITUD_APROBADA;
-            tesis.registrarDecision(p, decision);
-            return new ResultadoVerificacion(decision, mensajeDeDecision(tesis));
-        }
-
-        Instant limite = tesis.enviadaEn().plus(politica.tiempoMaximoEspera());
-        if (!reloj.instant().isBefore(limite)) {
-            tesis.marcarPendiente();
-            return new ResultadoVerificacion(tesis.estado(), MSG_DEMORA);
-        }
-        return new ResultadoVerificacion(tesis.estado(), MSG_EN_ANALISIS);
+        return consultarSinRomperse(tesis.idEnvio())
+                .map(porcentaje -> decidir(tesis, porcentaje))
+                .orElseGet(() -> seguirEsperando(tesis));
     }
 
     private ResultadoVerificacion intentarEnviar(Tesis tesis) {
@@ -79,6 +65,19 @@ public class VerificarSimilitudTesis {
         }
     }
 
+    private ResultadoVerificacion decidir(Tesis tesis, int porcentaje) {
+        tesis.registrarDecision(porcentaje, politica.decidir(porcentaje));
+        return resultadoDeDecision(tesis);
+    }
+
+    private ResultadoVerificacion seguirEsperando(Tesis tesis) {
+        if (politica.esperaAgotada(tesis.enviadaEn(), reloj.instant())) {
+            tesis.marcarPendiente();
+            return new ResultadoVerificacion(tesis.estado(), MSG_DEMORA);
+        }
+        return new ResultadoVerificacion(tesis.estado(), MSG_EN_ANALISIS);
+    }
+
     private Optional<Integer> consultarSinRomperse(String idEnvio) {
         try {
             return servicio.consultarPorcentaje(idEnvio);
@@ -87,11 +86,11 @@ public class VerificarSimilitudTesis {
         }
     }
 
-    private String mensajeDeDecision(Tesis tesis) {
-        if (tesis.estado() == EstadoTesis.RECHAZADA_POR_SIMILITUD) {
-            return "Su tesis fue rechazada: la similitud (" + tesis.porcentajeSimilitud()
-                    + " %) supera el máximo permitido (" + politica.umbralMaximo() + " %).";
-        }
-        return "Su tesis superó el filtro antiplagio (similitud: " + tesis.porcentajeSimilitud() + " %).";
+    private ResultadoVerificacion resultadoDeDecision(Tesis tesis) {
+        String mensaje = tesis.estado() == EstadoTesis.RECHAZADA_POR_SIMILITUD
+                ? "Su tesis fue rechazada: la similitud (" + tesis.porcentajeSimilitud()
+                        + " %) supera el máximo permitido (" + politica.umbralMaximo() + " %)."
+                : "Su tesis superó el filtro antiplagio (similitud: " + tesis.porcentajeSimilitud() + " %).";
+        return new ResultadoVerificacion(tesis.estado(), mensaje);
     }
 }
