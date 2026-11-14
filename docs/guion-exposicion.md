@@ -55,7 +55,7 @@ Escenario: Turnitin no entrega el porcentaje dentro del tiempo máximo de espera
 | `TurnitinSimulado` | Turnitin | Configurar en Cucumber: responde X %, demora o cae |
 | `RelojControlable` | Reloj del sistema | Que 15 minutos pasen en un instante |
 
-**Demo en vivo del ciclo** (repositorio `rais-antiplagio-grupo1`):
+**Demo en vivo del ciclo** (repositorio `aplicativo-rais-antiplagio`, tags de git; antes de exponer: `git status` limpio y estar en `main`). El historial también muestra que el Gherkin fue el primer commit después del esqueleto (`git log --oneline`):
 
 ```bash
 git checkout 1-red       && mvn test   # falla: el código asume que Turnitin siempre responde
@@ -104,7 +104,7 @@ git checkout main
 | 3:15–4:00 | Matriz 13 → 3 y cierre |
 
 ## Lista de verificación antes de exponer
-- [ ] `mvn test` en verde en la máquina de la exposición (JDK 25 en `aplicativo-rais-antiplagio` y en `rais-antiplagio-grupo1`; `mvn` ya está en el PATH).
-- [ ] Tags `1-red`, `2-green`, `3-refactor` presentes en `rais-antiplagio-grupo1`.
+- [ ] `mvn test` en verde en la máquina de la exposición (JDK 25 en `aplicativo-rais-antiplagio`; `mvn` ya está en el PATH).
+- [ ] Tags `1-red`, `2-green`, `3-refactor` presentes en `aplicativo-rais-antiplagio` (`git tag`), y `git checkout main` al terminar la demo.
 - [ ] Matriz lista como imagen o diapositiva.
 - [ ] Ensayo cronometrado.
